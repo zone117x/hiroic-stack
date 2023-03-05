@@ -1,0 +1,79 @@
+version: "3.9"
+services:
+  stacks-api:
+    image: hirosystems/stacks-blockchain-api:7.1.1
+    depends_on:
+      - postgres
+    ports:
+      - 3999:3999
+    expose:
+      - "3700"
+    environment:
+      NODE_ENVIRONMENT: production
+      STACKS_API_LOG_LEVEL: debug
+      STACKS_CHAIN_ID: "0x00000001"
+      STACKS_BLOCKCHAIN_API_HOST: "0.0.0.0"
+      STACKS_BLOCKCHAIN_API_PORT: 3999
+      STACKS_CORE_EVENT_HOST: "0.0.0.0"
+      STACKS_CORE_EVENT_PORT: 3700
+      PG_HOST: postgres
+      PG_PORT: 5490
+      PG_USER: postgres
+      PG_PASSWORD: postgres
+      PG_DATABASE: stacks_blockchain_api
+      PG_SCHEMA: public
+      STACKS_CORE_RPC_HOST: stacks-node
+      STACKS_CORE_RPC_PORT: 20443
+
+  postgres:
+    image: "postgres:14"
+    expose:
+      - "5490"
+    volumes:
+      - ./data/pg:/pg-data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: stacks_blockchain_api
+      PGPORT: 5490
+      PGDATA: /pg-data
+
+  stacks-node:
+    image: blockstack/stacks-blockchain:2.1.0.0.0-stretch
+    depends_on:
+      - stacks-api
+      - bitcoin
+    ports:
+      - 20443:20443 #rpc
+      - 20444:20444 #p2p
+    environment:
+      STACKS_EVENT_OBSERVER: stacks-api:3700
+    volumes:
+      - ./config/stacks-node.toml:/config.toml
+      - ./data/stacks-node:/chainstate
+    command: stacks-node start --config=/config.toml
+
+  bitcoin:
+    image: ruimarinho/bitcoin-core:22
+    volumes:
+      - ./data/bitcoin:/home/bitcoin/.bitcoin
+      - ./bitcoin.conf:/home/bitcoin/.bitcoin/bitcoin.conf
+    ports:
+      - 8333:8333 #p2p
+      - 8332:8332 #rpc
+
+  ord:
+    build:
+      dockerfile: ./dockerfiles/ord.Dockerfile
+    depends_on:
+      - bitcoin
+    restart: unless-stopped
+    volumes:
+      - ./config/bitcoin-rpc-cookie:/cookie
+      - ./data/ord:/data
+    environment:
+      RUST_LOG: info
+    # --index-sats (disabled for now, it's slow and massive)
+    command: ord --rpc-url bitcoin:8332 --cookie-file /cookie --data-dir /data server
+    ports:
+      - 7982:80
