@@ -64,6 +64,8 @@ services:
     ports:
       - 8333:8333 #p2p
       - 8332:8332 #rpc
+    healthcheck:
+      test: curl -f --data-binary '{"jsonrpc":"1.0","id":"curltext","method":"getblockchaininfo","params":[]}' -H 'content-type:text/plain;' http://btc:btc@127.0.0.1:8332 || exit 1
 
   ord:
     build:
