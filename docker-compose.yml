@@ -82,3 +82,48 @@ services:
     command: ord --rpc-url bitcoin:8332 --cookie-file /cookie --data-dir /data server
     ports:
       - 7982:80
+
+  tms-pg:
+    image: "postgres:14"
+    expose:
+      - '5590'
+    volumes:
+      - ./data/tms-pg:/pg-data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tms
+      PGPORT: 5590
+      PGDATA: /pg-data
+
+  tms:
+    image: hirosystems/token-metadata-service:0.1.0
+    depends_on:
+      tms-pg:
+        condition: service_started
+      stacks-node:
+        condition: service_healthy
+    environment:
+      RUN_MODE: default
+      API_HOST: 0.0.0.0
+      API_PORT: 3000
+      PGHOST: tms-pg
+      PGPORT: 5590
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: tms
+      BLOCKCHAIN_API_PGHOST: postgres
+      BLOCKCHAIN_API_PGPORT: 5490
+      BLOCKCHAIN_API_PGUSER: postgres
+      BLOCKCHAIN_API_PGPASSWORD: postgres
+      BLOCKCHAIN_API_PGDATABASE: stacks_blockchain_api
+      STACKS_NODE_RPC_HOST: stacks-node
+      STACKS_NODE_RPC_PORT: 20443
+      PUBLIC_GATEWAY_IPFS: https://cloudflare-ipfs.com
+      PUBLIC_GATEWAY_ARWEAVE: https://arweave.net
+      METADATA_MAX_IMMEDIATE_URI_RETRIES: 1
+      METADATA_FETCH_TIMEOUT_MS: 5000
+      JOB_QUEUE_CONCURRENCY_LIMIT: 20
+      PG_CONNECTION_POOL_MAX: 20
+    ports:
+      - 3000:3000
