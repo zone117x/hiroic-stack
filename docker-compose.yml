@@ -39,7 +39,8 @@ services:
       PGDATA: /pg-data
 
   stacks-node:
-    image: blockstack/stacks-blockchain:2.1.0.0.0-stretch
+    build:
+      dockerfile: ./dockerfiles/stacks-node.Dockerfile
     depends_on:
       - stacks-api
       - bitcoin
@@ -52,6 +53,8 @@ services:
       - ./config/stacks-node.toml:/config.toml
       - ./data/stacks-node:/chainstate
     command: stacks-node start --config=/config.toml
+    healthcheck:
+      test: curl -f http://127.0.0.1:20443/v2/pox || exit 1
 
   bitcoin:
     image: ruimarinho/bitcoin-core:22
